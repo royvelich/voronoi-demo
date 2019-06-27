@@ -261,9 +261,11 @@ class Breakpoint:
 
 
 class ParabolicArc:
-    def __init__(self, breakpoint1, breakpoint2, parabola=None):
+    def __init__(self, canvas, breakpoint1, breakpoint2, parabola=None, color="yellow"):
         self.left_arc = None
         self.right_arc = None
+        self.color = color
+        self.canvas = canvas
         if breakpoint1 is None and breakpoint2 is not None:
             self.left_breakpoint = None
             self.right_breakpoint = breakpoint2
@@ -306,6 +308,24 @@ class ParabolicArc:
         else:
             return site.x > self.left_breakpoint.x and site.x <= self.right_breakpoint.x
 
+    def render(self):
+        if self.left_breakpoint is None:
+            left = 0
+        else:
+            left = self.left_breakpoint.x
+
+        if self.right_breakpoint is None:
+            right = 2000
+        else:
+            right = self.right_breakpoint.x
+
+        x_range = range(int(left), int(right), 5)
+        x = [*x_range]
+
+        for x1, x2 in pairwise(x):
+            y1 = self.parabola.eval(x1)
+            y2 = self.parabola.eval(x2)
+            self.canvas.create_line(x1, y1, x2, y2, fill=self.color, width=4)
 
 class ParabolicIntersection:
     def __init__(self, canvas, parabola1, parabola2):
@@ -385,6 +405,7 @@ class VoronoiDiagram(Canvas):
         self.arc_dict = {}
         self.show_circles = True
         self.show_parabolas = True
+        self.show_beachline = False
 
     def try_add_circle_event(self, parabolic_arc):
         if parabolic_arc.left_breakpoint is not None and parabolic_arc.right_breakpoint is not None:
@@ -409,6 +430,9 @@ class VoronoiDiagram(Canvas):
         if key == "p":
             self.show_parabolas = not self.show_parabolas
 
+        if key == "b":
+            self.show_beachline = not self.show_beachline
+
         for parabola in self.parabolas:
             parabola.update()
 
@@ -431,9 +455,9 @@ class VoronoiDiagram(Canvas):
                                 self.parabolic_intersections.append(parabolic_intersection)
                                 self.breakpoints.append(parabolic_intersection.left_breakpoint)
                                 self.breakpoints.append(parabolic_intersection.right_breakpoint)
-                                parabolic_arc1 = ParabolicArc(parabolic_arc.left_breakpoint, parabolic_intersection.left_breakpoint)
-                                parabolic_arc2 = ParabolicArc(parabolic_intersection.left_breakpoint, parabolic_intersection.right_breakpoint)
-                                parabolic_arc3 = ParabolicArc(parabolic_intersection.right_breakpoint, parabolic_arc.right_breakpoint)
+                                parabolic_arc1 = ParabolicArc(self, parabolic_arc.left_breakpoint, parabolic_intersection.left_breakpoint)
+                                parabolic_arc2 = ParabolicArc(self, parabolic_intersection.left_breakpoint, parabolic_intersection.right_breakpoint)
+                                parabolic_arc3 = ParabolicArc(self, parabolic_intersection.right_breakpoint, parabolic_arc.right_breakpoint)
                                 self.parabolic_arcs.remove(parabolic_arc)
                                 self.parabolic_arcs.append(parabolic_arc1)
                                 self.parabolic_arcs.append(parabolic_arc2)
@@ -473,7 +497,7 @@ class VoronoiDiagram(Canvas):
                                 parabolic_intersection.right_breakpoint.node = node2
                                 break
                     else:
-                        parabolic_arc = ParabolicArc(None, None, breaching_parabola)
+                        parabolic_arc = ParabolicArc(self, None, None, breaching_parabola)
                         self.parabolic_arcs.append(parabolic_arc)
                         self.arc_dict[parabolic_arc.get_key()] = parabolic_arc
 
@@ -538,6 +562,10 @@ class VoronoiDiagram(Canvas):
 
             for breakpoint in self.breakpoints:
                 breakpoint.render()
+
+        if self.show_beachline:
+            for parabolic_arc in self.parabolic_arcs:
+                parabolic_arc.render()
 
         if self.show_circles:
             for circle in self.circles:
